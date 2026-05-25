@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Palazzo del Pianoforte — Renaissance Piano Hall</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cinzel+Decorative:wght@400;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0705;
+    font-family: 'EB Garamond', serif;
+    overflow: hidden;
+    color: #e8d5a3;
+  }
+
+  #canvas-container {
+    position: fixed; inset: 0;
+  }
+
+  canvas { display: block; }
+
+  /* ─── HUD ─── */
+  #hud {
+    position: fixed; inset: 0;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  /* Title */
+  #title-plate {
+    position: absolute;
+    top: 28px; left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(10,7,5,.85) 0%, rgba(10,7,5,.6) 100%);
+    border: 1px solid rgba(212,175,55,.4);
+    border-top: 2px solid rgba(212,175,55,.7);
+    padding: 10px 40px 12px;
+    backdrop-filter: blur(4px);
+  }
+  #title-plate h1 {
+    font-family: 'Cinzel Decorative', serif;
+    font-size: 1.05rem;
+    color: #d4af37;
+    letter-spacing: .22em;
+    text-shadow: 0 0 18px rgba(212,175,55,.5);
+  }
+  #title-plate p {
+    font-family: 'EB Garamond', serif;
+    font-style: italic;
+    font-size: .78rem;
+    color: rgba(232,213,163,.6);
+    letter-spacing: .1em;
+    margin-top: 2px;
+  }
+
+  /* Controls legend */
+  #controls-legend {
+    position: absolute;
+    bottom: 28px; left: 50%;
+    transform: translateX(-50%);
+    display: flex; gap: 24px;
+    background: rgba(10,7,5,.75);
+    border: 1px solid rgba(212,175,55,.25);
+    padding: 8px 24px;
+    backdrop-filter: blur(4px);
+  }
+  .ctrl-item {
+    display: flex; align-items: center; gap: 7px;
+    font-size: .72rem; color: rgba(232,213,163,.65);
+    letter-spacing: .06em;
+  }
+  .ctrl-key {
+    background: rgba(212,175,55,.15);
+    border: 1px solid rgba(212,175,55,.35);
+    padding: 2px 7px;
+    font-family: 'Cinzel', serif;
+    font-size: .65rem;
+    color: #d4af37;
+  }
+
+  /* Upload Panel toggle button */
+  #upload-toggle {
+    position: absolute;
+    top: 28px; right: 28px;
+    pointer-events: all;
+    background: rgba(10,7,5,.85);
+    border: 1px solid rgba(212,175,55,.5);
+    color: #d4af37;
+    font-family: 'Cinzel', serif;
+    font-size: .72rem;
+    letter-spacing: .12em;
+    padding: 9px 18px;
+    cursor: pointer;
+    transition: all .25s;
+    backdrop-filter: blur(6px);
+  }
+  #upload-toggle:hover {
+    background: rgba(212,175,55,.15);
+    border-color: #d4af37;
+    box-shadow: 0 0 16px rgba(212,175,55,.25);
+  }
+
+  /* Upload Panel */
+  #upload-panel {
+    position: absolute;
+    top: 80px; right: 28px;
+    width: 300px;
+    background: linear-gradient(160deg, rgba(20,14,8,.97) 0%, rgba(12,8,4,.97) 100%);
+    border: 1px solid rgba(212,175,55,.4);
+    border-top: 2px solid rgba(212,175,55,.7);
+    backdrop-filter: blur(10px);
+    pointer-events: all;
+    transform: translateX(340px);
+    transition: transform .4s cubic-bezier(.25,.8,.25,1);
+    z-index: 20;
+  }
+  #upload-panel.open { transform: translateX(0); }
+
+  .panel-header {
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid rgba(212,175,55,.2);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .panel-header .ornament { color: #d4af37; font-size: 1.1rem; }
+  .panel-header h2 {
+    font-family: 'Cinzel', serif;
+    font-size: .78rem;
+    letter-spacing: .15em;
+    color: #d4af37;
+  }
+
+  .panel-body { padding: 16px 20px; }
+
+  .slot-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .artwork-slot {
+    aspect-ratio: 3/4;
+    border: 1px dashed rgba(212,175,55,.35);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: border-color .2s, background .2s;
+    background: rgba(212,175,55,.03);
+  }
+  .artwork-slot:hover {
+    border-color: rgba(212,175,55,.7);
+    background: rgba(212,175,55,.07);
+  }
+  .artwork-slot .slot-label {
+    font-family: 'Cinzel', serif;
+    font-size: .58rem;
+    letter-spacing: .1em;
+    color: rgba(212,175,55,.5);
+    margin-top: 6px;
+  }
+  .artwork-slot .slot-icon { font-size: 1.3rem; color: rgba(212,175,55,.35); }
+  .artwork-slot img {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+  }
+  .artwork-slot .remove-btn {
+    position: absolute; top: 4px; right: 4px;
+    background: rgba(10,7,5,.85);
+    border: 1px solid rgba(212,175,55,.4);
+    color: #d4af37;
+    width: 20px; height: 20px;
+    font-size: .7rem;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0;
+    transition: opacity .2s;
+  }
+  .artwork-slot:hover .remove-btn { opacity: 1; }
+
+  input[type=file] { display: none; }
+
+  .divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(212,175,55,.3), transparent);
+    margin: 14px 0;
+  }
+
+  .panel-note {
+    font-size: .7rem;
+    font-style: italic;
+    color: rgba(232,213,163,.4);
+    text-align: center;
+    line-height: 1.5;
+  }
+
+  /* Crosshair */
+  #crosshair {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    width: 18px; height: 18px;
+    pointer-events: none;
+  }
+  #crosshair::before, #crosshair::after {
+    content: '';
+    position: absolute;
+    background: rgba(212,175,55,.6);
+  }
+  #crosshair::before { width: 100%; height: 1px; top: 50%; left: 0; }
+  #crosshair::after  { width: 1px; height: 100%; left: 50%; top: 0; }
+
+  /* Loading screen */
+  #loading {
+    position: fixed; inset: 0;
+    background: #0a0705;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+    transition: opacity .8s;
+  }
+  #loading h2 {
+    font-family: 'Cinzel Decorative', serif;
+    color: #d4af37;
+    font-size: 1.4rem;
+    letter-spacing: .2em;
+    margin-bottom: 8px;
+    text-shadow: 0 0 30px rgba(212,175,55,.5);
+  }
+  #loading p {
+    font-style: italic;
+    color: rgba(232,213,163,.5);
+    font-size: .85rem;
+    margin-bottom: 32px;
+    letter-spacing: .1em;
+  }
+  .load-bar-wrap {
+    width: 220px; height: 2px;
+    background: rgba(212,175,55,.15);
+    border: 1px solid rgba(212,175,55,.2);
+  }
+  .load-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #8b6914, #d4af37, #8b6914);
+    width: 0;
+    transition: width 1.2s ease;
+    box-shadow: 0 0 8px rgba(212,175,55,.5);
+  }
+  #click-prompt {
+    position: fixed; inset: 0;
+    background: rgba(10,7,5,.92);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 90;
+    cursor: pointer;
+  }
+  #click-prompt h2 {
+    font-family: 'Cinzel Decorative', serif;
+    color: #d4af37;
+    font-size: 1.6rem;
+    letter-spacing: .18em;
+    text-shadow: 0 0 40px rgba(212,175,55,.6);
+    margin-bottom: 10px;
+  }
+  #click-prompt p {
+    font-style: italic;
+    color: rgba(232,213,163,.5);
+    letter-spacing: .12em;
+  }
+  .pulse { animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:.5} 50%{opacity:1} }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <h2>PALAZZO DEL PIANOFORTE</h2>
+  <p>Preparing the Renaissance Hall…</p>
+  <div class="load-bar-wrap"><div class="load-bar" id="load-bar"></div></div>
+</div>
+
+<div id="click-prompt" style="display:none">
+  <h2>PALAZZO DEL PIANOFORTE</h2>
+  <p class="pulse">— Click to Enter the Hall —</p>
+</div>
+
+<div id="canvas-container"></div>
+
+<div id="hud">
+  <div id="title-plate">
+    <h1>PALAZZO DEL PIANOFORTE</h1>
+    <p>Renaissance Piano Hall · XVI Century</p>
+  </div>
+
+  <div id="crosshair"></div>
+
+  <button id="upload-toggle">⊞ ARTWORKS</button>
+
+  <div id="upload-panel">
+    <div class="panel-header">
+      <span class="ornament">❧</span>
+      <h2>ARTWORK COLLECTION</h2>
+    </div>
+    <div class="panel-body">
+      <div class="slot-grid" id="slot-grid">
+        <!-- slots injected by JS -->
+      </div>
+      <div class="divider"></div>
+      <p class="panel-note">Upload images to display<br>upon the hall's gilded frames</p>
+    </div>
+  </div>
+
+  <div id="controls-legend">
+    <div class="ctrl-item"><span class="ctrl-key">W A S D</span> Move</div>
+    <div class="ctrl-item"><span class="ctrl-key">Drag</span> Look Around</div>
+    <div class="ctrl-item"><span class="ctrl-key">Shift</span> Run</div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════
+//  SCENE SETUP
+// ═══════════════════════════════════════════════════════
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0d0905);
+scene.fog = new THREE.FogExp2(0x0d0905, 0.022);
+
+const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.05, 120);
+camera.position.set(0, 1.7, 10);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.9;
+document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+// ═══════════════════════════════════════════════════════
+//  TEXTURE HELPERS (Canvas API)
+// ═══════════════════════════════════════════════════════
+function makeCanvasTex(w, h, fn) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  fn(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c);
+  return t;
+}
+
+// Stone / marble wall texture
+function makeMarbleTex(w=512, h=512, base='#2a1f14', vein='#d4af37') {
+  return makeCanvasTex(w, h, (ctx, W, H) => {
+    ctx.fillStyle = base; ctx.fillRect(0,0,W,H);
+    // vein lines
+    for (let i=0;i<18;i++) {
+      ctx.save();
+      ctx.globalAlpha = 0.06 + Math.random()*0.09;
+      ctx.strokeStyle = vein;
+      ctx.lineWidth = 0.5 + Math.random()*1.5;
+      ctx.beginPath();
+      let x = Math.random()*W, y = Math.random()*H;
+      ctx.moveTo(x,y);
+      for (let s=0;s<8;s++) {
+        x += (Math.random()-0.5)*80; y += (Math.random()-0.5)*80;
+        ctx.quadraticCurveTo(x+(Math.random()-0.5)*40, y+(Math.random()-0.5)*40, x, y);
+      }
+      ctx.stroke(); ctx.restore();
+    }
+    // noise grain
+    for (let i=0;i<4000;i++) {
+      ctx.fillStyle = `rgba(0,0,0,${Math.random()*0.06})`;
+      ctx.fillRect(Math.random()*W, Math.random()*H, 1.5, 1.5);
+    }
+  });
+}
+
+// Parquet floor texture
+function makeParquetTex(w=512, h=512) {
+  return makeCanvasTex(w, h, (ctx, W, H) => {
+    const colors = ['#3d2b10','#4a3418','#5a3f1e','#3a2810'];
+    const tw=64, th=32;
+    for (let row=0; row<H/th; row++) {
+      for (let col=0; col<W/tw; col++) {
+        const c = colors[(row+col)%colors.length];
+        ctx.fillStyle = c; ctx.fillRect(col*tw, row*th, tw, th);
+        // plank lines
+        ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(col*tw+.5, row*th+.5, tw-1, th-1);
+        // wood grain
+        for (let g=0;g<4;g++) {
+          ctx.strokeStyle = `rgba(0,0,0,${0.05+Math.random()*0.08})`;
+          ctx.lineWidth = 0.4;
+          ctx.beginPath();
+          ctx.moveTo(col*tw+Math.random()*tw, row*th);
+          ctx.lineTo(col*tw+Math.random()*tw, row*th+th);
+          ctx.stroke();
+        }
+      }
+    }
+  });
+}
+
+// Ceiling fresco — ornate painted look
+function makeFrescoTex(w=512, h=512) {
+  return makeCanvasTex(w, h, (ctx, W, H) => {
+    // Base ivory
+    ctx.fillStyle = '#c9b07a'; ctx.fillRect(0,0,W,H);
+    // Radial golden glow center
+    const grd = ctx.createRadialGradient(W/2,H/2,10,W/2,H/2,W*0.6);
+    grd.addColorStop(0,'rgba(255,220,100,.35)');
+    grd.addColorStop(1,'rgba(0,0,0,.3)');
+    ctx.fillStyle=grd; ctx.fillRect(0,0,W,H);
+    // Ornament grid
+    ctx.strokeStyle='rgba(180,140,40,.5)'; ctx.lineWidth=1.2;
+    for(let x=0;x<W;x+=64){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+    for(let y=0;y<H;y+=64){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+    // Rosette centers
+    for(let cx=32;cx<W;cx+=64) for(let cy=32;cy<H;cy+=64){
+      ctx.save(); ctx.translate(cx,cy);
+      for(let p=0;p<8;p++){
+        ctx.save(); ctx.rotate(p*Math.PI/4);
+        ctx.fillStyle='rgba(180,140,40,.3)';
+        ctx.beginPath(); ctx.ellipse(0,-14,4,10,0,0,Math.PI*2); ctx.fill();
+        ctx.restore();
+      }
+      ctx.beginPath(); ctx.arc(0,0,5,0,Math.PI*2);
+      ctx.fillStyle='rgba(212,175,55,.5)'; ctx.fill();
+      ctx.restore();
+    }
+  });
+}
+
+// Gold metallic texture
+function makeGoldTex(w=128,h=128) {
+  return makeCanvasTex(w,h,(ctx,W,H)=>{
+    const grd=ctx.createLinearGradient(0,0,W,H);
+    grd.addColorStop(0,'#8b6914'); grd.addColorStop(.3,'#d4af37');
+    grd.addColorStop(.5,'#f5d76e'); grd.addColorStop(.7,'#c9a227');
+    grd.addColorStop(1,'#8b6914');
+    ctx.fillStyle=grd; ctx.fillRect(0,0,W,H);
+    for(let i=0;i<300;i++){
+      ctx.fillStyle=`rgba(255,255,200,${Math.random()*0.06})`;
+      ctx.fillRect(Math.random()*W,Math.random()*H,2,2);
+    }
+  });
+}
+
+// Piano black lacquer
+function makePianoTex(w=256,h=256) {
+  return makeCanvasTex(w,h,(ctx,W,H)=>{
+    ctx.fillStyle='#0a0a0c'; ctx.fillRect(0,0,W,H);
+    // reflection shimmer
+    const grd=ctx.createLinearGradient(0,0,W,H);
+    grd.addColorStop(0,'rgba(80,60,40,.18)');
+    grd.addColorStop(.4,'rgba(255,255,255,.06)');
+    grd.addColorStop(1,'rgba(0,0,0,.0)');
+    ctx.fillStyle=grd; ctx.fillRect(0,0,W,H);
+  });
+}
+
+// Velvet curtain texture
+function makeCurtainTex(w=256,h=512,col='#6b1a1a') {
+  return makeCanvasTex(w,h,(ctx,W,H)=>{
+    ctx.fillStyle=col; ctx.fillRect(0,0,W,H);
+    // vertical folds
+    for(let x=0;x<W;x+=24){
+      const grd=ctx.createLinearGradient(x,0,x+24,0);
+      grd.addColorStop(0,'rgba(0,0,0,.35)');
+      grd.addColorStop(.4,'rgba(255,255,255,.06)');
+      grd.addColorStop(1,'rgba(0,0,0,.25)');
+      ctx.fillStyle=grd; ctx.fillRect(x,0,24,H);
+    }
+    // fabric noise
+    for(let i=0;i<8000;i++){
+      ctx.fillStyle=`rgba(0,0,0,${Math.random()*0.04})`;
+      ctx.fillRect(Math.random()*W,Math.random()*H,1,1);
+    }
+  });
+}
+
+// Column marble
+function makeColumnTex(w=128,h=512) {
+  return makeCanvasTex(w,h,(ctx,W,H)=>{
+    ctx.fillStyle='#c8bfa0'; ctx.fillRect(0,0,W,H);
+    const grd=ctx.createLinearGradient(0,0,W,0);
+    grd.addColorStop(0,'rgba(0,0,0,.3)');
+    grd.addColorStop(.35,'rgba(255,255,255,.15)');
+    grd.addColorStop(.65,'rgba(255,255,255,.08)');
+    grd.addColorStop(1,'rgba(0,0,0,.25)');
+    ctx.fillStyle=grd; ctx.fillRect(0,0,W,H);
+    for(let i=0;i<12;i++){
+      ctx.globalAlpha=0.07+Math.random()*.08;
+      ctx.strokeStyle='#8b7355'; ctx.lineWidth=0.5;
+      ctx.beginPath(); let y=Math.random()*H;
+      ctx.moveTo(0,y); ctx.lineTo(W,y+Math.random()*80-40); ctx.stroke();
+    }
+    ctx.globalAlpha=1;
+  });
+}
+
+// Frame texture
+function makeFrameTex(w=64,h=64) {
+  return makeCanvasTex(w,h,(ctx,W,H)=>{
+    const grd=ctx.createLinearGradient(0,0,W,H);
+    grd.addColorStop(0,'#6b4f10'); grd.addColorStop(.5,'#d4af37'); grd.addColorStop(1,'#6b4f10');
+    ctx.fillStyle=grd; ctx.fillRect(0,0,W,H);
+  });
+}
+
+// Placeholder painting texture
+function makePlaceholderPainting(w=256,h=320, label='I') {
+  return makeCanvasTex(w,h,(ctx,W,H)=>{
+    // Dark background
+    ctx.fillStyle='#1a1208'; ctx.fillRect(0,0,W,H);
+    // Vignette
+    const g=ctx.createRadialGradient(W/2,H/2,H*.1,W/2,H/2,H*.75);
+    g.addColorStop(0,'rgba(60,40,10,.0)'); g.addColorStop(1,'rgba(0,0,0,.7)');
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    // Abstract figure suggestion
+    ctx.strokeStyle='rgba(200,170,100,.18)'; ctx.lineWidth=1;
+    for(let i=0;i<20;i++){
+      ctx.beginPath();
+      ctx.moveTo(Math.random()*W,Math.random()*H);
+      ctx.quadraticCurveTo(Math.random()*W,Math.random()*H,Math.random()*W,Math.random()*H);
+      ctx.stroke();
+    }
+    // Roman numeral label
+    ctx.font=`bold ${H*0.22}px serif`;
+    ctx.fillStyle='rgba(212,175,55,.12)';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(label, W/2, H/2);
+    // Ornate border
+    ctx.strokeStyle='rgba(212,175,55,.25)'; ctx.lineWidth=2;
+    ctx.strokeRect(8,8,W-16,H-16);
+    ctx.strokeStyle='rgba(212,175,55,.12)'; ctx.lineWidth=1;
+    ctx.strokeRect(12,12,W-24,H-24);
+  });
+}
+
+// ─── Pre-generate textures ───
+const marbleTex   = makeMarbleTex(); marbleTex.wrapS=marbleTex.wrapT=THREE.RepeatWrapping; marbleTex.repeat.set(4,2);
+const marbleTex2  = makeMarbleTex(512,512,'#1e1812','#b8860b'); marbleTex2.wrapS=marbleTex2.wrapT=THREE.RepeatWrapping; marbleTex2.repeat.set(3,3);
+const parquetTex  = makeParquetTex(); parquetTex.wrapS=parquetTex.wrapT=THREE.RepeatWrapping; parquetTex.repeat.set(6,6);
+const frescoTex   = makeFrescoTex(); frescoTex.wrapS=frescoTex.wrapT=THREE.RepeatWrapping; frescoTex.repeat.set(4,4);
+const goldTex     = makeGoldTex();
+const pianoTex    = makePianoTex();
+const curtainTexR = makeCurtainTex(256,512,'#6b1a1a');
+const curtainTexL = makeCurtainTex(256,512,'#6b1a1a');
+const columnTex   = makeColumnTex();
+const frameTex    = makeFrameTex();
+const paintings   = ['I','II','III','IV','V','VI'].map(l=>makePlaceholderPainting(256,320,l));
+
+// ═══════════════════════════════════════════════════════
+//  SCENE.BACKGROUND
+// ═══════════════════════════════════════════════════════
+// Hall dimensions
+const HW=14, HD=30, HH=9; // half-width, depth, height
+
+// Floor
+{
+  const geo=new THREE.PlaneGeometry(HW*2,HD);
+  const mat=new THREE.MeshLambertMaterial({map:parquetTex,color:0x8b6914});
+  const m=new THREE.Mesh(geo,mat); m.rotation.x=-Math.PI/2; m.receiveShadow=true;
+  scene.add(m);
+}
+
+// Ceiling
+{
+  const geo=new THREE.PlaneGeometry(HW*2,HD);
+  const mat=new THREE.MeshLambertMaterial({map:frescoTex,color:0xc9b07a});
+  const m=new THREE.Mesh(geo,mat); m.rotation.x=Math.PI/2; m.position.y=HH;
+  scene.add(m);
+}
+
+// Back wall
+{
+  const geo=new THREE.PlaneGeometry(HW*2,HH);
+  const mat=new THREE.MeshLambertMaterial({map:marbleTex,color:0x8b7040});
+  const m=new THREE.Mesh(geo,mat); m.position.set(0,HH/2,-HD/2);
+  m.receiveShadow=true; scene.add(m);
+}
+
+// Front wall
+{
+  const geo=new THREE.PlaneGeometry(HW*2,HH);
+  const mat=new THREE.MeshLambertMaterial({map:marbleTex,color:0x7a6035});
+  const m=new THREE.Mesh(geo,mat); m.position.set(0,HH/2,HD/2); m.rotation.y=Math.PI;
+  m.receiveShadow=true; scene.add(m);
+}
+
+// Left wall
+{
+  const geo=new THREE.PlaneGeometry(HD,HH);
+  const mat=new THREE.MeshLambertMaterial({map:marbleTex2,color:0x7a6035});
+  const m=new THREE.Mesh(geo,mat); m.position.set(-HW,HH/2,0); m.rotation.y=Math.PI/2;
+  m.receiveShadow=true; scene.add(m);
+}
+
+// Right wall
+{
+  const geo=new THREE.PlaneGeometry(HD,HH);
+  const mat=new THREE.MeshLambertMaterial({map:marbleTex2,color:0x7a6035});
+  const m=new THREE.Mesh(geo,mat); m.position.set(HW,HH/2,0); m.rotation.y=-Math.PI/2;
+  m.receiveShadow=true; scene.add(m);
+}
+
+// ═══════════════════════════════════════════════════════
+//  STAGE / PLATFORM
+// ═══════════════════════════════════════════════════════
+{
+  const stageMat=new THREE.MeshLambertMaterial({color:0x3d2810,map:parquetTex});
+  // Main stage platform
+  const geo=new THREE.BoxGeometry(HW*2-1, 0.5, 9);
+  const m=new THREE.Mesh(geo,stageMat); m.position.set(0,0.25,-HD/2+4.5);
+  m.castShadow=true; m.receiveShadow=true; scene.add(m);
+  // Stage front edge (gold trim)
+  const trimGeo=new THREE.BoxGeometry(HW*2-1,0.08,0.12);
+  const trimMat=new THREE.MeshLambertMaterial({color:0xd4af37,map:goldTex});
+  const trim=new THREE.Mesh(trimGeo,trimMat); trim.position.set(0,0.54,-HD/2+9+0.06);
+  scene.add(trim);
+  // Stage steps
+  for(let s=0;s<3;s++){
+    const sg=new THREE.BoxGeometry(6, 0.15, 0.5);
+    const sm=new THREE.Mesh(sg,stageMat);
+    sm.position.set(0, s*0.15, -HD/2+9+(s+1)*0.5);
+    sm.castShadow=true; sm.receiveShadow=true; scene.add(sm);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  GRAND PIANO
+// ═══════════════════════════════════════════════════════
+function buildGrandPiano(px,py,pz) {
+  const blk = new THREE.MeshLambertMaterial({color:0x0c0c10,map:pianoTex});
+  const wht = new THREE.MeshLambertMaterial({color:0xf0ede0});
+  const blkKey = new THREE.MeshLambertMaterial({color:0x080810});
+  const brass= new THREE.MeshLambertMaterial({color:0xd4af37,map:goldTex});
+  const grp=new THREE.Group();
+
+  // Body (simplified grand shape)
+  const bodyGeo=new THREE.BoxGeometry(2.8,0.18,1.8);
+  const body=new THREE.Mesh(bodyGeo,blk); body.position.set(0,0.85,0); grp.add(body);
+
+  // Lid (angled)
+  const lidGeo=new THREE.BoxGeometry(2.8,0.06,1.8);
+  const lid=new THREE.Mesh(lidGeo,blk); lid.position.set(0,0.94,0);
+  lid.rotation.z=0.08; grp.add(lid);
+
+  // Curved tail block (approximate with box)
+  const tailGeo=new THREE.CylinderGeometry(0.55,0.55,0.18,16,1,false,0,Math.PI);
+  const tail=new THREE.Mesh(tailGeo,blk); tail.position.set(-1.1,0.85,-0.3);
+  tail.rotation.y=Math.PI/2; grp.add(tail);
+
+  // Keyboard lid
+  const klGeo=new THREE.BoxGeometry(1.4,0.05,0.55);
+  const kl=new THREE.Mesh(klGeo,blk); kl.position.set(0.5,0.765,0.75); grp.add(kl);
+
+  // White keys
+  for(let k=0;k<22;k++){
+    const kg=new THREE.BoxGeometry(0.055,0.04,0.45);
+    const km=new THREE.Mesh(kg,wht); km.position.set(-0.59+k*0.058,0.755,0.62); grp.add(km);
+  }
+  // Black keys
+  [0,1,3,4,5,7,8,10,11,12,14,15].forEach((i,j)=>{
+    const bg=new THREE.BoxGeometry(0.033,0.07,0.28);
+    const bm=new THREE.Mesh(bg,blkKey); bm.position.set(-0.56+i*0.058+0.029,0.775,0.52); grp.add(bm);
+  });
+
+  // Three legs
+  const legPos=[[-0.9,0,-0.6],[0.9,0,-0.6],[0.0,0,0.72]];
+  legPos.forEach(([lx,ly,lz])=>{
+    const lg=new THREE.CylinderGeometry(0.045,0.04,0.76,8);
+    const lm=new THREE.Mesh(lg,blk); lm.position.set(lx,0.38,lz); grp.add(lm);
+    // foot
+    const fg=new THREE.CylinderGeometry(0.06,0.065,0.05,8);
+    const fm=new THREE.Mesh(fg,brass); fm.position.set(lx,0.025,lz); grp.add(fm);
+  });
+
+  // Pedal box
+  const pbg=new THREE.BoxGeometry(0.35,0.18,0.15);
+  const pb=new THREE.Mesh(pbg,blk); pb.position.set(0,0.09,0.55); grp.add(pb);
+  // Pedals
+  [-0.08,0,0.08].forEach((ox,i)=>{
+    const pg=new THREE.CylinderGeometry(0.025,0.02,0.15,8);
+    const pm=new THREE.Mesh(pg,brass); pm.position.set(ox,0.08,0.62);
+    pm.rotation.x=Math.PI/2; grp.add(pm);
+  });
+
+  // Music stand
+  const mstGeo=new THREE.BoxGeometry(0.8,0.6,0.03);
+  const mst=new THREE.Mesh(mstGeo,blk); mst.position.set(0.3,1.16,-0.3); mst.rotation.x=-0.3; grp.add(mst);
+  // Stand support
+  const ssGeo=new THREE.BoxGeometry(0.04,0.3,0.04);
+  const ss=new THREE.Mesh(ssGeo,blk); ss.position.set(0.3,1.02,-0.38); grp.add(ss);
+
+  grp.position.set(px,py,pz);
+  grp.rotation.y=Math.PI*0.05;
+  grp.traverse(c=>{if(c.isMesh){c.castShadow=true;c.receiveShadow=true;}});
+  scene.add(grp);
+}
+
+buildGrandPiano(0, 0.5, -HD/2+3.5);
+
+// ═══════════════════════════════════════════════════════
+//  COLUMNS (Renaissance Corinthian style)
+// ═══════════════════════════════════════════════════════
+function makeColumn(x,z) {
+  const mat=new THREE.MeshLambertMaterial({color:0xc8bfa0,map:columnTex});
+  const goldMat=new THREE.MeshLambertMaterial({color:0xd4af37,map:goldTex});
+  const g=new THREE.Group();
+
+  // Shaft
+  const shaft=new THREE.CylinderGeometry(0.28,0.32,HH*0.82,16);
+  const sm=new THREE.Mesh(shaft,mat); sm.position.y=HH*0.41; g.add(sm);
+
+  // Base
+  const base=new THREE.CylinderGeometry(0.42,0.44,0.22,16);
+  const bm=new THREE.Mesh(base,goldMat); bm.position.y=0.11; g.add(bm);
+
+  // Capital
+  const cap=new THREE.CylinderGeometry(0.44,0.30,0.38,16);
+  const cm=new THREE.Mesh(cap,goldMat); cm.position.y=HH*0.82+0.19; g.add(cm);
+
+  // Abacus (top slab)
+  const ab=new THREE.BoxGeometry(0.9,0.18,0.9);
+  const am=new THREE.Mesh(ab,goldMat); am.position.y=HH*0.82+0.47; g.add(am);
+
+  // Entablature
+  const ent=new THREE.BoxGeometry(1.0,0.35,0.5);
+  const em=new THREE.Mesh(ent,mat); em.position.y=HH*0.82+0.72; g.add(em);
+
+  g.position.set(x,0,z);
+  g.traverse(c=>{if(c.isMesh){c.castShadow=true;c.receiveShadow=true;}});
+  scene.add(g);
+}
+
+const colZ = [-10,-3,4,11]; // z positions along hall
+[-HW+0.8, HW-0.8].forEach(cx=>{
+  colZ.forEach(cz=>makeColumn(cx,cz));
+});
+
+// Arch between columns (decorative)
+function makeArch(x,z1,z2) {
+  const mat=new THREE.MeshLambertMaterial({color:0xc8bfa0,map:columnTex});
+  // Horizontal beam
+  const bGeo=new THREE.BoxGeometry(0.3,0.5,Math.abs(z2-z1));
+  const b=new THREE.Mesh(bGeo,mat); b.position.set(x,HH*0.82+0.05,(z1+z2)/2);
+  b.castShadow=true; scene.add(b);
+}
+colZ.slice(0,-1).forEach((z,i)=>{
+  makeArch(-HW+0.8, z, colZ[i+1]);
+  makeArch( HW-0.8, z, colZ[i+1]);
+});
+
+// ═══════════════════════════════════════════════════════
+//  CURTAINS (Stage)
+// ═══════════════════════════════════════════════════════
+{
+  const cMat=new THREE.MeshLambertMaterial({color:0x8b0000,map:curtainTexR,side:THREE.DoubleSide});
+  const cGeo=new THREE.PlaneGeometry(5,HH-1);
+  // Left curtain
+  const cl=new THREE.Mesh(cGeo,cMat); cl.position.set(-HW+3.5,(HH-1)/2,-HD/2+0.5);
+  cl.rotation.y=0.35; cl.castShadow=true; scene.add(cl);
+  // Right curtain
+  const cr=new THREE.Mesh(cGeo,cMat); cr.position.set(HW-3.5,(HH-1)/2,-HD/2+0.5);
+  cr.rotation.y=-0.35; cr.castShadow=true; scene.add(cr);
+
+  // Curtain tie-back rope
+  const goldMat2=new THREE.MeshLambertMaterial({color:0xd4af37});
+  [-HW+6, HW-6].forEach(rx=>{
+    const rg=new THREE.TorusGeometry(0.22,0.04,8,16,Math.PI);
+    const rm=new THREE.Mesh(rg,goldMat2); rm.position.set(rx,4.5,-HD/2+1.5);
+    rm.rotation.z=rx<0?0.5:-0.5; scene.add(rm);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  ARTWORKS / PAINTINGS (wall frames)
+// ═══════════════════════════════════════════════════════
+const FRAME_SLOTS = [];
+const framePositions = [
+  // Left wall
+  { pos:[-HW+0.08, 4.5, -8], rotY: Math.PI/2, w:2.2, h:2.8, idx:0 },
+  { pos:[-HW+0.08, 4.5, -1], rotY: Math.PI/2, w:2.2, h:2.8, idx:1 },
+  { pos:[-HW+0.08, 4.5,  6], rotY: Math.PI/2, w:2.2, h:2.8, idx:2 },
+  // Right wall
+  { pos:[ HW-0.08, 4.5, -8], rotY:-Math.PI/2, w:2.2, h:2.8, idx:3 },
+  { pos:[ HW-0.08, 4.5, -1], rotY:-Math.PI/2, w:2.2, h:2.8, idx:4 },
+  { pos:[ HW-0.08, 4.5,  6], rotY:-Math.PI/2, w:2.2, h:2.8, idx:5 },
+];
+
+const goldFrameMat=new THREE.MeshLambertMaterial({color:0xd4af37,map:frameTex});
+const frameBorderW=0.18;
+
+framePositions.forEach(fp=>{
+  // Canvas (painting)
+  const cGeo=new THREE.PlaneGeometry(fp.w, fp.h);
+  const cMat=new THREE.MeshLambertMaterial({map: paintings[fp.idx], color:0xffffff});
+  const cMesh=new THREE.Mesh(cGeo, cMat);
+  cMesh.position.set(...fp.pos);
+  cMesh.rotation.y=fp.rotY;
+  cMesh.receiveShadow=true;
+  scene.add(cMesh);
+  FRAME_SLOTS.push(cMesh); // keep reference for texture swap
+
+  // Frame border (4 bars)
+  const frameGroup=new THREE.Group();
+  frameGroup.position.set(...fp.pos);
+  frameGroup.rotation.y=fp.rotY;
+  const bars=[
+    {s:[fp.w+frameBorderW*2, frameBorderW, 0.08], p:[0, fp.h/2+frameBorderW/2, 0.04]},
+    {s:[fp.w+frameBorderW*2, frameBorderW, 0.08], p:[0,-fp.h/2-frameBorderW/2, 0.04]},
+    {s:[frameBorderW, fp.h, 0.08], p:[-fp.w/2-frameBorderW/2, 0, 0.04]},
+    {s:[frameBorderW, fp.h, 0.08], p:[ fp.w/2+frameBorderW/2, 0, 0.04]},
+  ];
+  bars.forEach(b=>{
+    const bg=new THREE.BoxGeometry(...b.s);
+    const bm=new THREE.Mesh(bg,goldFrameMat); bm.position.set(...b.p);
+    bm.castShadow=true; frameGroup.add(bm);
+  });
+  scene.add(frameGroup);
+});
+
+// ═══════════════════════════════════════════════════════
+//  CHANDELIERS + LIGHTING
+// ═══════════════════════════════════════════════════════
+// Ambient (warm candlelight base)
+const ambLight=new THREE.AmbientLight(0x7a5520, 0.55);
+scene.add(ambLight);
+
+// Main directional (sun through imaginary window)
+const dirLight=new THREE.DirectionalLight(0xffeebb, 0.6);
+dirLight.position.set(5, 12, 5);
+dirLight.castShadow=true;
+dirLight.shadow.mapSize.set(2048,2048);
+dirLight.shadow.camera.near=0.5; dirLight.shadow.camera.far=60;
+dirLight.shadow.camera.left=-20; dirLight.shadow.camera.right=20;
+dirLight.shadow.camera.top=20; dirLight.shadow.camera.bottom=-20;
+scene.add(dirLight);
+
+// Stage spotlight
+const spotStage=new THREE.SpotLight(0xfff4cc, 2.2, 22, Math.PI*0.18, 0.4, 1.5);
+spotStage.position.set(0, HH-0.3, -HD/2+5);
+spotStage.target.position.set(0,0,-HD/2+3);
+spotStage.castShadow=true; scene.add(spotStage); scene.add(spotStage.target);
+
+// Chandeliers
+function makeChandelier(cx, cy, cz, intensity=1.2) {
+  const goldM=new THREE.MeshLambertMaterial({color:0xd4af37,map:goldTex,emissive:0x443300});
+  const g=new THREE.Group();
+
+  // Chain
+  for(let i=0;i<5;i++){
+    const lg=new THREE.CylinderGeometry(0.025,0.025,0.22,6);
+    const lm=new THREE.Mesh(lg,goldM); lm.position.y=i*0.24; g.add(lm);
+  }
+  // Crown
+  const crG=new THREE.TorusGeometry(0.55,0.05,8,24);
+  const crM=new THREE.Mesh(crG,goldM); crM.position.y=-0.15; crM.rotation.x=Math.PI/2; g.add(crM);
+  // Arms
+  for(let a=0;a<6;a++){
+    const ang=a*Math.PI/3;
+    const aG=new THREE.CylinderGeometry(0.03,0.025,0.55,6);
+    const aM=new THREE.Mesh(aG,goldM); aM.rotation.z=Math.PI/2;
+    aM.position.set(Math.cos(ang)*0.275,-0.12,Math.sin(ang)*0.275); g.add(aM);
+    // Candle tip
+    const tipG=new THREE.CylinderGeometry(0.04,0.04,0.18,8);
+    const tipM=new THREE.Mesh(tipG,goldM); tipM.position.set(Math.cos(ang)*0.55,-0.25,Math.sin(ang)*0.55); g.add(tipM);
+    // Flame glow (point light)
+    const pl=new THREE.PointLight(0xffaa33, intensity*0.35, 5, 2);
+    pl.position.set(Math.cos(ang)*0.55, -0.1, Math.sin(ang)*0.55); g.add(pl);
+  }
+  // Central point light
+  const mainPL=new THREE.PointLight(0xffcc66, intensity, 14, 1.5);
+  mainPL.position.y=-0.5; mainPL.castShadow=true; g.add(mainPL);
+
+  g.position.set(cx,cy,cz);
+  g.traverse(c=>{if(c.isMesh){c.castShadow=true;}});
+  scene.add(g);
+}
+
+makeChandelier(0, HH-0.2, -12, 1.4);
+makeChandelier(0, HH-0.2,  -4, 1.2);
+makeChandelier(0, HH-0.2,   4, 1.2);
+
+// Wall sconces (along columns)
+function makeSconce(x,y,z,rotY) {
+  const goldM=new THREE.MeshLambertMaterial({color:0xd4af37,map:goldTex,emissive:0x332200});
+  const g=new THREE.Group();
+  const bg=new THREE.CylinderGeometry(0.06,0.12,0.12,8);
+  const bm=new THREE.Mesh(bg,goldM); bm.position.z=0; g.add(bm);
+  const arm=new THREE.CylinderGeometry(0.02,0.02,0.4,6);
+  const am=new THREE.Mesh(arm,goldM); am.rotation.x=Math.PI/2; am.position.z=0.22; g.add(am);
+  const cap=new THREE.ConeGeometry(0.1,0.18,8);
+  const cm=new THREE.Mesh(cap,goldM); cm.position.set(0,0.09,0.44); g.add(cm);
+  const pl=new THREE.PointLight(0xff9933,0.8,5,2); pl.position.set(0,0.12,0.44); g.add(pl);
+  g.position.set(x,y,z); g.rotation.y=rotY;
+  scene.add(g);
+}
+
+colZ.forEach(cz=>{
+  makeSconce(-HW+0.55, 5, cz, 0);
+  makeSconce( HW-0.55, 5, cz, Math.PI);
+});
+
+// ═══════════════════════════════════════════════════════
+//  DECORATIVE ELEMENTS
+// ═══════════════════════════════════════════════════════
+
+// Ornate baseboard / wainscoting
+{
+  const wMat=new THREE.MeshLambertMaterial({color:0x5a3e18,map:parquetTex});
+  const goldM=new THREE.MeshLambertMaterial({color:0xb8860b,map:goldTex});
+  // Left/right
+  [[-HW,0],[ HW, Math.PI]].forEach(([wx,ry])=>{
+    const wg=new THREE.BoxGeometry(0.12,1.2,HD);
+    const wm=new THREE.Mesh(wg,wMat); wm.position.set(wx+(wx<0?0.06:-0.06),0.6,0); wm.receiveShadow=true; scene.add(wm);
+    const tg=new THREE.BoxGeometry(0.14,0.06,HD);
+    const tm=new THREE.Mesh(tg,goldM); tm.position.set(wx+(wx<0?0.07:-0.07),1.22,0); scene.add(tm);
+  });
+}
+
+// Bench (audience seating rows)
+function makeBench(bx,by,bz,bw) {
+  const woodM=new THREE.MeshLambertMaterial({color:0x3d2208});
+  const g=new THREE.Group();
+  const seat=new THREE.BoxGeometry(bw,0.06,0.45);
+  const sm=new THREE.Mesh(seat,woodM); sm.position.y=0.45; g.add(sm);
+  const back=new THREE.BoxGeometry(bw,0.55,0.06);
+  const bm=new THREE.Mesh(back,woodM); bm.position.set(0,0.75,-0.19); g.add(bm);
+  [-bw/2+0.2, bw/2-0.2].forEach(lx=>{
+    const lg=new THREE.BoxGeometry(0.06,0.45,0.45); const lm=new THREE.Mesh(lg,woodM); lm.position.set(lx,0.225,0); g.add(lm);
+  });
+  g.position.set(bx,by,bz);
+  g.traverse(c=>{if(c.isMesh){c.castShadow=true;c.receiveShadow=true;}});
+  scene.add(g);
+}
+
+for(let row=0;row<4;row++) {
+  makeBench(-4.5,0,-HD/2+12+row*2.2, 4);
+  makeBench( 4.5,0,-HD/2+12+row*2.2, 4);
+}
+
+// ═══════════════════════════════════════════════════════
+//  FIRST-PERSON CONTROLS (no Pointer Lock — works inside iframe)
+// ═══════════════════════════════════════════════════════
+const keys={};
+let yaw=0, pitch=0;
+const SPEED=4.5, RUN=9.0;
+const clock=new THREE.Clock();
+
+// ── Mouse drag to look ──
+let isDragging=false, lastX=0, lastY=0;
+renderer.domElement.addEventListener('mousedown',e=>{
+  if(panelOpen) return;
+  isDragging=true; lastX=e.clientX; lastY=e.clientY;
+  renderer.domElement.style.cursor='grabbing';
+});
+window.addEventListener('mouseup',()=>{
+  isDragging=false;
+  renderer.domElement.style.cursor='grab';
+});
+window.addEventListener('mousemove',e=>{
+  if(!isDragging) return;
+  const dx=e.clientX-lastX, dy=e.clientY-lastY;
+  lastX=e.clientX; lastY=e.clientY;
+  yaw   -= dx*0.004;
+  pitch -= dy*0.003;
+  pitch  = Math.max(-Math.PI/2.2, Math.min(Math.PI/2.2, pitch));
+});
+
+// ── Touch drag to look (mobile) ──
+let touchId=null, touchLastX=0, touchLastY=0;
+renderer.domElement.addEventListener('touchstart',e=>{
+  if(e.touches.length===1){ touchId=e.touches[0].identifier; touchLastX=e.touches[0].clientX; touchLastY=e.touches[0].clientY; }
+},{passive:true});
+window.addEventListener('touchmove',e=>{
+  for(const t of e.touches){ if(t.identifier===touchId){
+    yaw  -=(t.clientX-touchLastX)*0.005;
+    pitch-=(t.clientY-touchLastY)*0.004;
+    pitch=Math.max(-Math.PI/2.2,Math.min(Math.PI/2.2,pitch));
+    touchLastX=t.clientX; touchLastY=t.clientY;
+  }}
+},{passive:true});
+window.addEventListener('touchend',()=>{ touchId=null; });
+
+// ── Keyboard ──
+document.addEventListener('keydown',e=>{ keys[e.code]=true; e.preventDefault&&(e.code.startsWith('Arrow')||e.code==='Space')&&e.preventDefault(); });
+document.addEventListener('keyup',  e=>{ keys[e.code]=false; });
+
+renderer.domElement.style.cursor='grab';
+
+const euler=new THREE.Euler(0,0,0,'YXZ');
+const vel=new THREE.Vector3();
+const dir=new THREE.Vector3();
+
+function updateMovement(dt) {
+  euler.set(pitch, yaw, 0);
+  camera.quaternion.setFromEuler(euler);
+
+  const speed=(keys['ShiftLeft']||keys['ShiftRight'])?RUN:SPEED;
+  dir.set(0,0,0);
+  if(keys['KeyW']||keys['ArrowUp'])    dir.z=-1;
+  if(keys['KeyS']||keys['ArrowDown'])  dir.z= 1;
+  if(keys['KeyA']||keys['ArrowLeft'])  dir.x=-1;
+  if(keys['KeyD']||keys['ArrowRight']) dir.x= 1;
+  if(dir.length()>0) dir.normalize();
+
+  const camDir=new THREE.Vector3();
+  camera.getWorldDirection(camDir); camDir.y=0; camDir.normalize();
+  const right=new THREE.Vector3(); right.crossVectors(camDir,new THREE.Vector3(0,1,0)).normalize();
+
+  vel.set(0,0,0);
+  vel.addScaledVector(camDir,-dir.z*speed*dt);
+  vel.addScaledVector(right, dir.x*speed*dt);
+
+  camera.position.add(vel);
+  camera.position.x=Math.max(-HW+0.7,Math.min(HW-0.7,camera.position.x));
+  camera.position.z=Math.max(-HD/2+0.7,Math.min(HD/2-0.7,camera.position.z));
+  camera.position.y=1.7;
+}
+
+// ═══════════════════════════════════════════════════════
+//  UPLOAD PANEL UI
+// ═══════════════════════════════════════════════════════
+const SLOT_COUNT=6;
+const slotGrid=document.getElementById('slot-grid');
+const slotImages=[]; // stores data URLs
+
+function buildSlots() {
+  for(let i=0;i<SLOT_COUNT;i++) {
+    (function(idx){
+      const div=document.createElement('div'); div.className='artwork-slot'; div.title=`Slot ${idx+1}`;
+      const icon=document.createElement('span'); icon.className='slot-icon'; icon.textContent='🖼';
+      const lbl=document.createElement('span'); lbl.className='slot-label'; lbl.textContent=`FRAME ${['I','II','III','IV','V','VI'][idx]}`;
+      const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*';
+      const rmBtn=document.createElement('button'); rmBtn.className='remove-btn'; rmBtn.textContent='✕';
+
+      div.append(icon,lbl,inp,rmBtn);
+      slotGrid.appendChild(div);
+      slotImages.push(null);
+
+      div.addEventListener('click',e=>{
+        if(e.target===rmBtn) return;
+        inp.click();
+      });
+      rmBtn.addEventListener('click',e=>{
+        e.stopPropagation();
+        slotImages[idx]=null;
+        // restore placeholder
+        const t=makePlaceholderPainting(256,320,['I','II','III','IV','V','VI'][idx]);
+        FRAME_SLOTS[idx].material.map=t; FRAME_SLOTS[idx].material.needsUpdate=true;
+        const img=div.querySelector('img'); if(img)img.remove();
+        icon.style.display=''; lbl.style.display='';
+      });
+      inp.addEventListener('change',()=>{
+        const file=inp.files[0]; if(!file) return;
+        const reader=new FileReader();
+        reader.onload=ev=>{
+          const url=ev.target.result; slotImages[idx]=url;
+          // Update 3D texture
+          const img=new window.Image();
+          img.onload=()=>{
+            const tex=new THREE.Texture(img);
+            tex.needsUpdate=true; tex.encoding=THREE.sRGBEncoding;
+            FRAME_SLOTS[idx].material.map=tex;
+            FRAME_SLOTS[idx].material.color.set(0xffffff);
+            FRAME_SLOTS[idx].material.needsUpdate=true;
+          };
+          img.src=url;
+          // Thumbnail
+          let thumb=div.querySelector('img');
+          if(!thumb){thumb=document.createElement('img');div.appendChild(thumb);}
+          thumb.src=url; icon.style.display='none'; lbl.style.display='none';
+        };
+        reader.readAsDataURL(file);
+      });
+    })(i);
+  }
+}
+buildSlots();
+
+// Upload panel toggle
+const panel=document.getElementById('upload-panel');
+const toggleBtn=document.getElementById('upload-toggle');
+let panelOpen=false;
+toggleBtn.addEventListener('click',()=>{
+  panelOpen=!panelOpen;
+  panel.classList.toggle('open',panelOpen);
+  // Release pointer lock when panel open
+  // drag-look paused while panel is open (isDragging resets on mouseup)
+});
+
+// ═══════════════════════════════════════════════════════
+//  RESIZE
+// ═══════════════════════════════════════════════════════
+window.addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+
+// ═══════════════════════════════════════════════════════
+//  LOADING SEQUENCE
+// ═══════════════════════════════════════════════════════
+const loadBar=document.getElementById('load-bar');
+const loadingEl=document.getElementById('loading');
+const promptEl=document.getElementById('click-prompt');
+
+loadBar.style.width='100%';
+setTimeout(()=>{
+  loadingEl.style.opacity='0';
+  setTimeout(()=>{ loadingEl.style.display='none'; },800);
+},1400);
+
+// ═══════════════════════════════════════════════════════
+//  RENDER LOOP
+// ═══════════════════════════════════════════════════════
+function animate() {
+  requestAnimationFrame(animate);
+  const dt=Math.min(clock.getDelta(),0.05);
+  updateMovement(dt);
+  renderer.render(scene,camera);
+}
+animate();
+</script>
+</body>
+</html>
